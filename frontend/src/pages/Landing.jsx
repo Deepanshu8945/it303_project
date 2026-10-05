@@ -1,9 +1,7 @@
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  ArrowLeftRight,
   FileSpreadsheet,
-  Braces,
   ShieldCheck,
   SlidersHorizontal,
   History,
@@ -25,7 +23,6 @@ export default function Landing() {
       </section>
       <section className="hero">
         <div className="hero-copy">
-          <span className="pill">A DATA PREPARATION WORKSPACE</span>
           <h1>
             File Converter
             <br />
@@ -51,56 +48,6 @@ export default function Landing() {
           <div className="hero-proof">
             <ShieldCheck size={16} /> Authenticated access <span /> Private
             datasets <span /> Both directions
-          </div>
-        </div>
-        <div
-          className="conversion-illustration"
-          aria-label="CSV dataset converted into ARFF with a reviewed schema"
-        >
-          <div className="illustration-top">
-            <span className="dot" /> THE CONVERSION WORKSPACE{" "}
-            <span>01 — 03</span>
-          </div>
-          <div className="format-flow">
-            <div>
-              <FileSpreadsheet size={30} />
-              <b>.csv</b>
-              <small>Tabular data</small>
-            </div>
-            <span className="flow-arrow">
-              <ArrowLeftRight size={26} />
-            </span>
-            <div>
-              <Braces size={30} />
-              <b>.arff</b>
-              <small>WEKA ready</small>
-            </div>
-          </div>
-          <div className="mock-schema">
-            <div className="mock-schema-title">
-              <b>Schema review</b>
-              <span className="badge">3 attributes</span>
-            </div>
-            <div className="mock-row">
-              <small>ATTRIBUTE</small>
-              <small>DETECTED TYPE</small>
-            </div>
-            <div className="mock-row">
-              <span>sepal_length</span>
-              <code>numeric</code>
-            </div>
-            <div className="mock-row">
-              <span>species</span>
-              <code>nominal</code>
-            </div>
-            <div className="mock-row">
-              <span>observed_on</span>
-              <code>date</code>
-            </div>
-          </div>
-          <div className="illustration-bottom">
-            <ShieldCheck size={17} />
-            <span>Review first. Convert with clarity.</span>
           </div>
         </div>
       </section>
@@ -144,20 +91,6 @@ export default function Landing() {
             </article>
           ))}
         </div>
-      </section>
-      <section className="landing-note">
-        <ShieldCheck size={24} />
-        <div>
-          <h3>Made for a focused data workflow</h3>
-          <p>
-            Registered users manage their datasets. Administrators manage
-            accounts, monitor activity, and configure system limits. Sparse ARFF
-            and model training are outside this project's scope.
-          </p>
-        </div>
-        <Link className="text-link" to="/login">
-          Open workspace <ArrowRight size={17} />
-        </Link>
       </section>
     </main>
   );

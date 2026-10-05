@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  ArrowRight,
   FileUp,
   ArrowLeftRight,
   Layers,
@@ -47,19 +46,6 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-          <section className="start-panel">
-            <div>
-              <span className="eyebrow">READY FOR YOUR NEXT DATASET?</span>
-              <h2>Upload. Review. Convert.</h2>
-              <p>Bring your CSV or ARFF file and take control of its schema.</p>
-              <Link className="button" to="/converter">
-                Open file converter <ArrowRight size={17} />
-              </Link>
-            </div>
-            <div className="format-block">
-              CSV <ArrowLeftRight /> ARFF
-            </div>
-          </section>
           <section className="panel">
             <div className="panel-heading">
               <h2>Recent conversions</h2>

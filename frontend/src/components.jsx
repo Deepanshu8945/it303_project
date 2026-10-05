@@ -59,6 +59,11 @@ export function Footer() {
       <span>
         © {new Date().getFullYear()} File Converter System. All Rights
         Reserved.
+        <br />
+        Contact:{" "}
+        <a href="mailto:dk.tech853@gmail.com" className="footer-contact">
+          dk.tech853@gmail.com
+        </a>
       </span>
       <span>
         Developed by {participants.join(", ")}
@@ -76,7 +81,6 @@ export function PublicLayout() {
       <header className="public-header">
         <Brand />
         <nav>
-          <Link to="/#workflow">How it works</Link>
           <Link
             className="button secondary"
             to={user ? "/dashboard" : "/login"}
@@ -152,15 +156,6 @@ export function WorkspaceLayout() {
           </button>
         </nav>
         <div className="sidebar-bottom">
-          <div className="mini-note">
-            <ShieldCheck size={20} />
-            <p>
-              Your datasets stay private.
-              <small>
-                Files are automatically removed after the retention window.
-              </small>
-            </p>
-          </div>
           <div className="user-card">
             <span className="avatar">{user.name[0]}</span>
             <div>
@@ -184,7 +179,6 @@ export function WorkspaceLayout() {
           <span>
             IT303 <span className="muted">/ Software Engineering</span>
           </span>
-          <span className="badge">● Secure workspace</span>
         </header>
         <main className="workspace-content">
           <Notice error={error} />

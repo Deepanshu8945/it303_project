@@ -200,10 +200,17 @@ em {
   letter-spacing: 1.5px;
 }
 .hero {
-  display: grid;
-  grid-template-columns: 1.05fr 1fr;
-  gap: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 820px;
+  margin: 0 auto;
   padding: 76px 0 85px;
+}
+.hero-copy {
+  display: flex;
+  flex-direction: column;
   align-items: center;
 }
 .pill {
@@ -232,17 +239,20 @@ em {
 }
 .hero-copy > .muted {
   font-size: 14px;
-  max-width: 450px;
+  max-width: 580px;
+  margin: 0 auto;
 }
 .hero-actions {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 25px;
   margin-top: 28px;
 }
 .hero-proof {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 9px;
   font-size: 10px;
   color: #859080;
@@ -435,6 +445,14 @@ footer {
 }
 footer span:last-child {
   text-align: right;
+}
+.footer-contact {
+  color: var(--green);
+  font-weight: 600;
+  text-decoration: underline;
+}
+.footer-contact:hover {
+  color: #246451;
 }
 .auth-page {
   max-width: 1080px;
@@ -1296,9 +1314,6 @@ pre {
   .public-header {
     height: 78px;
     padding: 0 20px;
-  }
-  .public-header nav > a:first-child {
-    display: none;
   }
   .public-header .button {
     padding: 9px 13px;
