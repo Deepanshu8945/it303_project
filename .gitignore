@@ -1,0 +1,14 @@
+.venv/
+node_modules/
+dist/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.env
+.runtime/
+tmp/
+*.pyc
+*.log
+playwright-report/
+test-results/
+.npm-cache/

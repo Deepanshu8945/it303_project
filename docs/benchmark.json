@@ -1,0 +1,6 @@
+{
+  "instances": 100000,
+  "input_bytes": 12327812,
+  "output_bytes": 12628017,
+  "parse_and_convert_seconds": 1.011
+}

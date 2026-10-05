@@ -1,0 +1,11 @@
+% Fictional weather observations for demonstration
+@relation 'weather observations'
+@attribute outlook {sunny,overcast,rainy}
+@attribute temperature numeric
+@attribute humidity numeric
+@attribute windy {yes,no}
+@attribute observed_on date "yyyy-MM-dd"
+@data
+sunny,30.5,75,no,'2026-09-01'
+overcast,27,80,no,'2026-09-02'
+rainy,24.25,?,yes,'2026-09-03'
