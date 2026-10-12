@@ -7,6 +7,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -38,6 +39,31 @@ class User(Base):
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+
+
+class LoginActivity(Base):
+    """Keep the two latest successful logins, independently of session revocation."""
+
+    __tablename__ = "login_activity"
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    logged_in_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ip_address: Mapped[str | None] = mapped_column(String(255))
+    user_agent: Mapped[str | None] = mapped_column(String(512))
+    previous_logged_in_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    previous_ip_address: Mapped[str | None] = mapped_column(String(255))
+    previous_user_agent: Mapped[str | None] = mapped_column(String(512))
+
+
+class LoginHistory(Base):
+    __tablename__ = "login_history"
+    __table_args__ = (Index("ix_login_history_user_time", "user_id", "logged_in_at"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    logged_in_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ip_address: Mapped[str | None] = mapped_column(String(255))
+    user_agent: Mapped[str | None] = mapped_column(String(512))
 
 
 class Session(Base):

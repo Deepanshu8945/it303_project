@@ -38,7 +38,8 @@ export async function api(path, options = {}, retry = true) {
     response.status === 401 &&
     retry &&
     tokens().refresh_token &&
-    !path.startsWith("/auth/")
+    (!path.startsWith("/auth/") ||
+      ["/auth/login-details", "/auth/login-history"].includes(path))
   ) {
     if (!refreshPromise) {
       refreshPromise = api(

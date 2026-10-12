@@ -107,6 +107,171 @@ test("landing, authentication, conversion, schema, download, history, logout", a
   expect(errors).toEqual([]);
 });
 
+test("recent sign-in names replace the login and registration promotional panel", async ({
+  page,
+}) => {
+  await login(page);
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  const panel = page.getByRole("region", {
+    name: "Recently signed in",
+    exact: true,
+  });
+  for (const mode of ["login", "register"]) {
+    await page.goto(`/${mode}`);
+    await expect(panel).toBeVisible();
+    await expect(
+      panel.getByRole("listitem").filter({ hasText: "Mira Desai" }),
+    ).toBeVisible();
+    expect(await panel.getByRole("listitem").count()).toBeLessThanOrEqual(5);
+    await expect(panel).not.toContainText("student@example.com");
+    await expect(panel).not.toContainText("127.0.0.1");
+    await expect(panel.locator("time, svg")).toHaveCount(0);
+    await expect(
+      page.getByText("Less formatting.", { exact: false }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByText("More possibility.", { exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByText("One workspace for preparing your CSV and ARFF datasets."),
+    ).toHaveCount(0);
+    await expect(
+      page.getByText("Secure accounts.", { exact: false }),
+    ).toHaveCount(0);
+    await page.screenshot({
+      path: `../docs/screenshots/${mode}-recent-users.png`,
+      fullPage: true,
+    });
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(panel).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+  await page.screenshot({
+    path: "../docs/screenshots/register-recent-users-mobile.png",
+    fullPage: true,
+  });
+  await page.route("**/api/v1/auth/recent-users", (route) =>
+    route.fulfill({ json: { names: [] } }),
+  );
+  await page.goto("/login");
+  await expect(panel).toContainText("No recent sign-ins yet");
+  await expect(
+    page.getByRole("button", { name: "Sign in", exact: true }),
+  ).toBeEnabled();
+  await page.unroute("**/api/v1/auth/recent-users");
+  await page.route("**/api/v1/auth/recent-users", (route) =>
+    route.fulfill({ status: 503, json: { detail: "Unavailable" } }),
+  );
+  await page.goto("/register");
+  await expect(panel).toContainText("temporarily unavailable");
+  await expect(
+    page.getByRole("button", { name: "Create account", exact: true }),
+  ).toBeEnabled();
+  await page.unroute("**/api/v1/auth/recent-users");
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(panel).toContainText("Mira Desai");
+  await page.route("**/api/v1/auth/recent-users", (route) =>
+    route.fulfill({
+      json: { names: ["<img src=x onerror=alert(1)>", "A".repeat(100)] },
+    }),
+  );
+  await page.goto("/login");
+  await expect(panel.getByRole("listitem").first()).toHaveText(
+    "<img src=x onerror=alert(1)>",
+  );
+  await expect(panel.locator("img")).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+});
+
+test("last login list, previous logins, reload and mobile layout", async ({
+  page,
+}) => {
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/last-login");
+  await expect(page).toHaveURL(/login/);
+  await login(page);
+  await page.getByRole("link", { name: "Last login", exact: true }).click();
+  await expect(page).toHaveURL(/last-login/);
+  const table = page.getByRole("table", {
+    name: "Successful sign-ins",
+    exact: true,
+  });
+  const times = table.locator("tbody time");
+  await expect(times.first()).toBeVisible();
+  await expect(table).toContainText("Mozilla");
+  await expect(
+    page.getByText(/Successful sign-ins for student@example.com/),
+  ).toBeVisible();
+  const firstTime = await times.first().getAttribute("datetime");
+  await page.reload();
+  await expect(times.first()).toHaveAttribute("datetime", firstTime);
+  await page.getByRole("button", { name: "Refresh details" }).click();
+  await expect(times.first()).toHaveAttribute("datetime", firstTime);
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(
+    page.getByRole("region", { name: "Recently signed in", exact: true }),
+  ).toContainText("Mira Desai");
+  await login(page);
+  await page.getByRole("link", { name: "Last login", exact: true }).click();
+  await expect(times.nth(1)).toHaveAttribute("datetime", firstTime);
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await login(page);
+  await page.getByRole("link", { name: "Last login", exact: true }).click();
+  await expect(times.nth(2)).toHaveAttribute("datetime", firstTime);
+  await page.screenshot({
+    path: "../docs/screenshots/last-login.png",
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(table).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+  await page.screenshot({
+    path: "../docs/screenshots/last-login-mobile.png",
+    fullPage: true,
+  });
+  const latestTime = await times.first().getAttribute("datetime");
+  await page.evaluate(() => {
+    const tokens = JSON.parse(sessionStorage.getItem("tokens"));
+    tokens.access_token = "expired-access-token";
+    sessionStorage.setItem("tokens", JSON.stringify(tokens));
+  });
+  await page.getByRole("button", { name: "Refresh details" }).click();
+  await expect(times.first()).toHaveAttribute("datetime", latestTime);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await page.route("**/api/v1/auth/login-history", (route) =>
+    route.fulfill({ json: { items: [] } }),
+  );
+  await page.getByRole("button", { name: "Refresh details" }).click();
+  await expect(page.getByText(/No login details recorded yet/)).toBeVisible();
+  await page.unroute("**/api/v1/auth/login-history");
+  await page.route("**/api/v1/auth/login-history", (route) =>
+    route.fulfill({
+      status: 503,
+      json: { detail: "Login history temporarily unavailable" },
+    }),
+  );
+  await page.getByRole("button", { name: "Refresh details" }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Login history temporarily unavailable",
+  );
+  await page.unroute("**/api/v1/auth/login-history");
+  await page.getByRole("button", { name: "Refresh details" }).click();
+  await expect(times.first()).toHaveAttribute("datetime", latestTime);
+  expect(errors).toEqual([]);
+});
 test("ARFF to CSV and malformed-file feedback", async ({ page }) => {
   await login(page);
   await page.goto("/converter");

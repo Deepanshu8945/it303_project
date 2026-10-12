@@ -30,6 +30,8 @@ and download it. PostgreSQL stores account and history metadata; private files e
 - Registration with email verification; sign in, rotating refresh tokens, inactivity expiry, and logout.
 - Temporary lockout after five failed login attempts; one-hour email password reset links.
 - Profile and email editing, current-password confirmation, password changes, and account deletion.
+- Last login sidebar tab with a list of the current user's latest 100 successful sign-ins, including time, server-observed IP address, and browser/device information.
+- Login and registration pages show only the display names of the five most recently signed-in users in the left panel, replacing the promotional copy.
 - Single-file CSV/ARFF uploads; extension, encoding, size, and structural validation.
 - CSV delimiter, quote character, header-row flag, and relation-name configuration.
 - Numeric, nominal, date, and string inference; editable attribute names and types.
@@ -74,7 +76,28 @@ representation; writers emit complete output before it is published to storage.
 | 0.6 Deliver Output & History | preview/download/history endpoints and pages |
 | 0.7 Administer System | `routes/admin.py`, administration page |
 
-See [requirement traceability](docs/REQUIREMENTS.md) for every FR-001–FR-018 and the DFD data-store mapping.
+See [requirement traceability](docs/REQUIREMENTS.md) for every FR-001–FR-021 and the DFD data-store mapping.
+
+### Updating an existing installation for Last login
+
+From `codebase`, run `.\.venv\Scripts\python.exe -m backend.manage init-db`, then restart the backend.
+This adds the `login_activity` and `login_history` tables without changing existing account/conversion
+tables, and copies any two login records retained by the previous version into the new list. Rebuild the
+frontend with `npm.cmd run build` from `frontend` if you serve the built app; the Vite development
+server picks up source changes. Render's Docker startup runs database initialization on deployment.
+
+Sign out and sign in to record a login after the update, then open **Last login** in the sidebar.
+The page lists up to 100 successful sign-ins, newest first. Older sign-ins that were never recorded
+cannot be reconstructed. Repeated database initialization does not duplicate migrated records.
+Records survive logout, password changes, and restarts, and are removed when the account is deleted.
+Failed sign-ins and session refreshes do not update them. Times display in the browser's local time
+zone. IP addresses come from the server connection (or its configured trusted proxy); local development
+may show a loopback address. Browser/device information is the browser-supplied user-agent string.
+
+If the names panel shows no users after a successful login, check
+`http://localhost:5173/api/v1/auth/recent-users`. A 404 means the backend is running an older version:
+stop and restart it from this `codebase` folder. The frontend and backend must both use the updated code.
+Use `--reload` with the local uvicorn development command to pick up future source edits.
 
 ## Database
 
@@ -133,7 +156,7 @@ it303_project/
 │   │   ├── api.js
 │   │   ├── components.jsx
 │   │   ├── styles.css
-│   │   └── pages/{Landing,Auth,Dashboard,Converter,History,Profile,Admin}.jsx
+│   │   └── pages/{Landing,Auth,Dashboard,Converter,History,Profile,LastLogin,Admin}.jsx
 │   └── tests/workflow.spec.js
 ├── database/{README.md,schema.sql}
 ├── samples/{students.csv,weather.arff,invalid.csv}

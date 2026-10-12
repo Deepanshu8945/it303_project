@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   FileUp,
   History,
+  Clock,
   Settings,
   ShieldCheck,
   LogOut,
@@ -139,6 +140,10 @@ export function WorkspaceLayout() {
           <NavLink to="/profile">
             <Settings size={18} />
             Profile & security
+          </NavLink>
+          <NavLink to="/last-login">
+            <Clock size={18} />
+            Last login
           </NavLink>
           {user.role === "admin" && (
             <NavLink to="/admin">

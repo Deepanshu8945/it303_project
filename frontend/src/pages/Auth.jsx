@@ -18,6 +18,59 @@ const titles = {
   resend: "Get a new verification link.",
 };
 
+function RecentSignins() {
+  const [names, setNames] = useState(null);
+  const [unavailable, setUnavailable] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    let sequence = 0;
+    function load() {
+      const request = ++sequence;
+      api("/auth/recent-users")
+        .then((result) => {
+          if (active && request === sequence) {
+            setNames(result.names);
+            setUnavailable(false);
+          }
+        })
+        .catch(() => {
+          if (active && request === sequence) setUnavailable(true);
+        });
+    }
+    load();
+    window.addEventListener("focus", load);
+    return () => {
+      active = false;
+      window.removeEventListener("focus", load);
+    };
+  }, []);
+
+  return (
+    <section
+      className="auth-intro recent-signins"
+      aria-label="Recently signed in"
+    >
+      <h2>Recently signed in</h2>
+      {unavailable ? (
+        <p className="muted">Recent sign-ins are temporarily unavailable.</p>
+      ) : names === null ? (
+        <p className="muted" role="status">
+          Loading names…
+        </p>
+      ) : names.length === 0 ? (
+        <p className="muted">No recent sign-ins yet.</p>
+      ) : (
+        <ul aria-label="Recently signed in users">
+          {names.map((name, index) => (
+            <li key={index}>{name}</li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export default function Auth({ mode }) {
   const location = useLocation();
   const [error, setError] = useState(null),
@@ -67,24 +120,28 @@ export default function Auth({ mode }) {
   }
   return (
     <main className="auth-page">
-      <div className="auth-intro">
-        <span className="eyebrow">FILE CONVERTER SYSTEM</span>
-        <h1>
-          Less formatting.
-          <br />
-          <em>More possibility.</em>
-        </h1>
-        <p>One workspace for preparing your CSV and ARFF datasets.</p>
-        <div className="auth-note">
-          <ShieldCheck />
-          <p>
-            Secure accounts.
-            <br />A private conversion history.
+      {["login", "register"].includes(mode) ? (
+        <RecentSignins />
+      ) : (
+        <div className="auth-intro">
+          <span className="eyebrow">FILE CONVERTER SYSTEM</span>
+          <h1>
+            Less formatting.
             <br />
-            Control over every attribute.
-          </p>
+            <em>More possibility.</em>
+          </h1>
+          <p>One workspace for preparing your CSV and ARFF datasets.</p>
+          <div className="auth-note">
+            <ShieldCheck />
+            <p>
+              Secure accounts.
+              <br />A private conversion history.
+              <br />
+              Control over every attribute.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
       <section className="auth-card">
         <span className="eyebrow">YOUR WORKSPACE STARTS HERE</span>
         <h2>{titles[mode]}</h2>

@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Converter from "./pages/Converter";
 import History from "./pages/History";
 import Profile from "./pages/Profile";
+import LastLogin from "./pages/LastLogin";
 import Admin from "./pages/Admin";
 import "./styles.css";
 
@@ -38,6 +39,7 @@ createRoot(document.getElementById("root")).render(
             <Route path="/converter" element={<Converter />} />
             <Route path="/history" element={<History />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/last-login" element={<LastLogin />} />
             <Route element={<Protected admin />}>
               <Route path="/admin" element={<Admin />} />
             </Route>

@@ -2,25 +2,58 @@ import argparse
 import os
 from datetime import timedelta
 from pathlib import Path
+from uuid import NAMESPACE_URL, uuid5
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
+from sqlalchemy.dialects.postgresql import insert
 
 from .app.config import settings
 from .app.database import Base, SessionLocal, engine
-from .app.models import Conversion, Event, SystemConfig, User, now, uid
+from .app.models import Conversion, Event, LoginActivity, LoginHistory, SystemConfig, User, now, uid
 from .app.security import hash_password
 from .app.storage import atomic_write, cleanup, file_path
 
 
 def init():
     Base.metadata.create_all(engine)
-    if settings().environment == "production":
-        # Supabase's browser-facing Data API must not expose account/token tables.
-        # The backend's database owner connection still works with RLS enabled.
-        with engine.begin() as connection:
-            for table in Base.metadata.sorted_tables:
-                connection.exec_driver_sql(f'ALTER TABLE "{table.name}" ENABLE ROW LEVEL SECURITY')
+    # Login metadata stays private even when local development uses a hosted database.
+    # The backend's database owner connection still works with RLS enabled.
+    private_tables = (
+        Base.metadata.sorted_tables
+        if settings().environment == "production"
+        else [LoginActivity.__table__, LoginHistory.__table__]
+    )
+    with engine.begin() as connection:
+        for table in private_tables:
+            connection.exec_driver_sql(f'ALTER TABLE "{table.name}" ENABLE ROW LEVEL SECURITY')
     with SessionLocal() as db:
+        # Preserve the two login records available from the previous version.
+        # Deterministic IDs make concurrent/repeated upgrades safe.
+        activities = db.scalars(
+            select(LoginActivity).where(
+                ~exists().where(LoginHistory.user_id == LoginActivity.user_id)
+            )
+        )
+        for activity in activities:
+            for prefix in ("previous_", ""):
+                timestamp = getattr(activity, prefix + "logged_in_at")
+                if timestamp is not None:
+                    db.execute(
+                        insert(LoginHistory)
+                        .values(
+                            id=str(
+                                uuid5(
+                                    NAMESPACE_URL,
+                                    f"login:{activity.user_id}:{timestamp.isoformat()}",
+                                )
+                            ),
+                            user_id=activity.user_id,
+                            logged_in_at=timestamp,
+                            ip_address=getattr(activity, prefix + "ip_address"),
+                            user_agent=getattr(activity, prefix + "user_agent"),
+                        )
+                        .on_conflict_do_nothing(index_elements=["id"])
+                    )
         if not db.get(SystemConfig, 1):
             config = settings()
             db.add(
@@ -31,7 +64,7 @@ def init():
                     retention_hours=config.retention_hours,
                 )
             )
-            db.commit()
+        db.commit()
     print("Database schema initialized.")
 
 

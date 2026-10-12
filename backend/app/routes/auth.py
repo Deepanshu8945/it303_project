@@ -1,14 +1,14 @@
 import secrets
 from datetime import timedelta
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 
 from ..database import get_db
 from ..mail import send_link
-from ..models import ActionToken, Session, User, now
+from ..models import ActionToken, LoginActivity, LoginHistory, Session, User, now, uid
 from ..security import (
     access_token,
     check_password,
@@ -130,7 +130,7 @@ def reset(body: ResetRequest, db=Depends(get_db)):
 
 
 @router.post("/login")
-def login(body: Credentials, db=Depends(get_db)):
+def login(body: Credentials, request: Request, db=Depends(get_db)):
     user = db.scalar(select(User).where(User.email == str(body.email).lower()).with_for_update())
     if user and user.locked_until and user.locked_until > now():
         raise HTTPException(429, "Account temporarily locked. Try again in 15 minutes.")
@@ -147,6 +147,40 @@ def login(body: Credentials, db=Depends(get_db)):
     if not user.verified:
         raise HTTPException(403, "Verify your email before signing in.")
     user.failed_attempts, user.locked_until = 0, None
+    activity = db.get(LoginActivity, user.id)
+    if activity is None:
+        activity = LoginActivity(user_id=user.id)
+        db.add(activity)
+    else:
+        activity.previous_logged_in_at = activity.logged_in_at
+        activity.previous_ip_address = activity.ip_address
+        activity.previous_user_agent = activity.user_agent
+    activity.logged_in_at = now()
+    # Use the server's client address, not arbitrary forwarded headers from clients.
+    activity.ip_address = request.client.host[:255] if request.client else None
+    activity.user_agent = request.headers.get("user-agent", "")[:512] or None
+    db.add(
+        LoginHistory(
+            id=uid(),
+            user_id=user.id,
+            logged_in_at=activity.logged_in_at,
+            ip_address=activity.ip_address,
+            user_agent=activity.user_agent,
+        )
+    )
+    db.flush()
+    retained = (
+        select(LoginHistory.id)
+        .where(LoginHistory.user_id == user.id)
+        .order_by(LoginHistory.logged_in_at.desc(), LoginHistory.id.desc())
+        .limit(100)
+    )
+    db.execute(
+        delete(LoginHistory).where(
+            LoginHistory.user_id == user.id, LoginHistory.id.not_in(retained)
+        )
+    )
+    # start_session commits login history, latest details and the session atomically.
     return {**start_session(db, user), "user": user_view(user)}
 
 
@@ -182,3 +216,56 @@ def logout(session=Depends(current_session), db=Depends(get_db)):
 @router.get("/me")
 def me(user=Depends(current_user)):
     return user_view(user)
+
+
+@router.get("/recent-users")
+def recent_users(db=Depends(get_db)):
+    """Public sign-in panel: only display names of the five most recent users."""
+    names = db.scalars(
+        select(User.name)
+        .join(LoginActivity, LoginActivity.user_id == User.id)
+        .where(User.active.is_(True), User.verified.is_(True))
+        .order_by(LoginActivity.logged_in_at.desc(), LoginActivity.user_id.asc())
+        .limit(5)
+    ).all()
+    return {"names": list(names)}
+
+
+@router.get("/login-details")
+def login_details(user=Depends(current_user), db=Depends(get_db)):
+    activity = db.get(LoginActivity, user.id)
+    if activity is None:
+        return {"latest": None, "previous": None}
+
+    def details(prefix=""):
+        timestamp = getattr(activity, prefix + "logged_in_at")
+        if timestamp is None:
+            return None
+        return {
+            "logged_in_at": timestamp,
+            "ip_address": getattr(activity, prefix + "ip_address"),
+            "user_agent": getattr(activity, prefix + "user_agent"),
+        }
+
+    return {"latest": details(), "previous": details("previous_")}
+
+
+@router.get("/login-history")
+def login_history(user=Depends(current_user), db=Depends(get_db)):
+    rows = db.scalars(
+        select(LoginHistory)
+        .where(LoginHistory.user_id == user.id)
+        .order_by(LoginHistory.logged_in_at.desc(), LoginHistory.id.desc())
+        .limit(100)
+    )
+    return {
+        "items": [
+            {
+                "id": row.id,
+                "logged_in_at": row.logged_in_at,
+                "ip_address": row.ip_address,
+                "user_agent": row.user_agent,
+            }
+            for row in rows
+        ]
+    }

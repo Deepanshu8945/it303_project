@@ -1,5 +1,64 @@
 # Verification results
 
+## Local recent-users fix and login-history list — 12 October 2026
+
+- Diagnosed the actual localhost app: GET `/auth/recent-users` returned **404** through both
+  port 8000 and the Vite proxy on 5173. The running backend had not loaded the new routes.
+  Started the updated backend with source reload and the frontend from the real project directory.
+- Initialized `login_history` in the configured Supabase database with RLS enabled, preserving
+  the latest/previous records available in `login_activity`. Repeated initialization is idempotent.
+- **88 backend tests passed.** New coverage includes multiple logins surviving logout, newest-first
+  ordering, exclusion of failed attempts and token refreshes, 100-record retention, owner isolation,
+  deletion cascade, safe backfill, and history privacy.
+- **Two affected Chrome workflows passed** against isolated test databases: public names after
+  login/logout, and the private history list retaining three successive logins. Reload, token renewal,
+  empty/error states, and mobile overflow were checked. Desktop/mobile screenshots were inspected.
+  The names panel also passed a focus-recovery check after a simulated backend error.
+- Verified the **regular localhost app through port 5173 using its actual configured Supabase database**:
+  recent-users returned HTTP 200, an existing account signed in, authenticated history returned rows,
+  logout succeeded, and the user's name remained in the public list. No account or password was created
+  or changed for that smoke check. Production build, lint, and formatting passed.
+
+## Names-only sign-in panel — 12 October 2026
+
+- **84 backend tests passed.** The public endpoint returns only display names, sorted by each
+  user's latest successful sign-in, limited to five users, without repeating a user. Unverified,
+  suspended, and never-signed-in accounts are excluded. Empty results are supported.
+- **All eight Chrome workflows passed across isolated batches.** The new workflow checks both
+  login/registration panels, removal of promotional text, names-only output, desktop/mobile layout,
+  long-name wrapping, HTML escaping, and empty/unavailable states without disabling the forms.
+  Existing conversion, administration, private login details, and recovery workflows also passed.
+  One initial navigation started before the restarted server was ready; it passed on rerun, and
+  subsequent batches waited for the health check before launching Chrome.
+- Production build, Python lint, and formatting checks passed. Login/registration screenshots were
+  captured, and desktop login plus mobile registration screenshots were visually inspected.
+- Verification used the dedicated local cluster and databases described below. No Supabase schema
+  or credentials changed for this addition; the existing `login_activity` table supplies the ordering.
+
+## Last-login requirement — 12 October 2026
+
+- **81 backend tests passed**, including seven new integration tests for first-login timestamps,
+  previous-login rotation, authentication and account isolation, logout persistence, account-deletion
+  cascade, unavailable/long browser metadata, and exclusion of failed/unverified/suspended sign-ins
+  and token refreshes. The upgrade test checks repeated initialization, preserved accounts, and RLS
+  protection in local mode. Client-supplied forwarded headers do not override the direct test-client address.
+- **All seven Chrome workflows passed across two runs.** The new workflow verifies the sidebar,
+  protected route, account email, recorded browser/time details, previous-login rotation, page reload,
+  refresh, access-token renewal, empty/error/retry states, and mobile overflow. The initial complete
+  run hit the existing 40-auth-requests/minute limit during password recovery; recovery and the
+  expanded last-login workflow passed in a later isolated batch after the window reset.
+- Production frontend build, Python lint, and formatting checks passed. Desktop/mobile screenshots
+  were visually inspected: `screenshots/last-login.png` and `screenshots/last-login-mobile.png`.
+- Checks ran on this Windows laptop from the actual project directory. A dedicated PostgreSQL
+  cluster under `.runtime/login-postgres`, port 55433, kept tests separate from existing databases.
+  Backend tests used `file_converter_test`; browser checks used `file_converter_login_ui_test`.
+  The existing `.env` and Supabase credentials were not changed by these tests.
+- Applied database initialization to the configured Supabase project and confirmed the new
+  `login_activity` table exists with RLS enabled. Existing accounts and history were retained.
+- Existing installations need `python -m backend.manage init-db` before restarting the backend.
+  Render's existing startup runs this automatically. Prior login details cannot be reconstructed;
+  recording starts at the next successful sign-in after installing the update.
+
 ## Free deployment preparation — 12 October 2026
 
 - Backend regression suite: **74 passed**. Deployment-specific rerun: **10 passed**, including
