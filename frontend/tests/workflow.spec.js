@@ -79,6 +79,9 @@ test("landing, authentication, conversion, schema, download, history, logout", a
   await expect(page.locator("pre")).toContainText(
     "@attribute 'student_name' STRING",
   );
+  await expect(page.getByRole("status")).toContainText(
+    "Verification passed · WEKA",
+  );
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download ARFF" }).click();
   expect((await download).suggestedFilename()).toBe("students.arff");
@@ -120,6 +123,9 @@ test("ARFF to CSV and malformed-file feedback", async ({ page }) => {
   await expect(page.locator("pre")).toContainText(
     "outlook,temperature,humidity,windy,observed_on",
   );
+  await expect(page.getByRole("status")).toContainText(
+    "Verification passed · Python CSV reader",
+  );
 });
 
 test("administrator views and configuration", async ({ page }) => {
@@ -137,6 +143,28 @@ test("administrator views and configuration", async ({ page }) => {
     path: "../docs/screenshots/admin.png",
     fullPage: true,
   });
+});
+
+test("failed output verification withholds preview and download", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/converter");
+  await page.getByLabel("Dataset file").setInputFiles({
+    name: "overflow.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("number\n1e999\n"),
+  });
+  await page.getByRole("button", { name: "Upload & review schema" }).click();
+  await page.getByRole("button", { name: "Convert to ARFF" }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "Output verification failed",
+  );
+  await expect(page.getByRole("button", { name: "Download ARFF" })).toHaveCount(
+    0,
+  );
+  await expect(page.locator("pre")).toHaveCount(0);
+  await expect(page.getByText(/Verification passed/)).toHaveCount(0);
 });
 
 test("mobile layout and role redirect", async ({ page }) => {
@@ -218,11 +246,9 @@ test("registration, emailed verification, password recovery, and account deletio
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/dashboard/);
   await page.goto("/profile");
-  const deletion = page
-    .locator("section")
-    .filter({
-      has: page.getByRole("heading", { name: "Delete account", exact: true }),
-    });
+  const deletion = page.locator("section").filter({
+    has: page.getByRole("heading", { name: "Delete account", exact: true }),
+  });
   await deletion.getByLabel("Current password").fill(replacement);
   page.once("dialog", (dialog) => dialog.accept());
   await deletion.getByRole("button", { name: "Delete my account" }).click();

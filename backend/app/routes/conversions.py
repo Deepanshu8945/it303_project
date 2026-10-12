@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 
+from ..config import settings
 from ..conversion.engine import (
     ParsingOptions,
     convert,
@@ -16,6 +17,7 @@ from ..conversion.engine import (
     summary,
 )
 from ..conversion.types import ConversionError
+from ..conversion.verification import VerificationUnavailable, verify_output
 from ..database import get_db
 from ..models import Conversion, Event, SystemConfig, Upload, now, uid
 from ..security import current_user
@@ -28,7 +30,7 @@ def limits(db):
     return db.get(SystemConfig, 1)
 
 
-def validation_error(db, user, error):
+def validation_error(db, user, error, status=400):
     db.add(
         Event(
             user_id=user.id,
@@ -39,7 +41,7 @@ def validation_error(db, user, error):
     )
     db.commit()
     raise HTTPException(
-        400,
+        status,
         {
             "message": "Conversion stopped. Correct the following error.",
             "errors": error.errors,
@@ -151,8 +153,20 @@ def create_conversion(body: ConvertRequest, user=Depends(current_user), db=Depen
         dataset.relation = body.relation
         dataset = override(dataset, [a.model_dump() for a in body.attributes])
         output, preview = convert(dataset, record.source_format, options)
+        target = "arff" if record.source_format == "csv" else "csv"
+        config = settings()
+        verification = verify_output(
+            dataset,
+            output,
+            target,
+            java=config.java_executable,
+            jar=config.weka_jar,
+            timeout=config.verification_timeout_seconds,
+        )
     except ValidationError:
         raise HTTPException(400, "Invalid relation name.")
+    except VerificationUnavailable as error:
+        validation_error(db, user, error, status=503)
     except ConversionError as error:
         validation_error(db, user, error)
     target = "arff" if record.source_format == "csv" else "csv"
@@ -178,6 +192,7 @@ def create_conversion(body: ConvertRequest, user=Depends(current_user), db=Depen
     return {
         "id": item.id,
         "preview": preview,
+        "verification": verification,
         "target_format": target,
         "download_name": Path(record.filename).stem + "." + target,
         **summary(dataset),

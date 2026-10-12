@@ -60,6 +60,7 @@ def seed():
         user = db.scalar(select(User).where(User.email == "student@example.com"))
         if not db.scalar(select(Conversion).where(Conversion.user_id == user.id)):
             from .app.conversion.engine import ParsingOptions, convert, parse
+            from .app.conversion.verification import verify_output
 
             for filename in ["students.csv", "weather.arff"]:
                 content = Path("samples", filename).read_text(encoding="utf-8")
@@ -68,6 +69,15 @@ def seed():
                 data = parse(content, source, options, 20)
                 output, _ = convert(data, source, options)
                 target = "arff" if source == "csv" else "csv"
+                config = settings()
+                verify_output(
+                    data,
+                    output,
+                    target,
+                    java=config.java_executable,
+                    jar=config.weka_jar,
+                    timeout=config.verification_timeout_seconds,
+                )
                 item = Conversion(
                     id=uid(),
                     user_id=user.id,

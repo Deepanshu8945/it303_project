@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     retention_hours: int = 24
     max_upload_mb: int = 50
     nominal_threshold: int = 20
+    weka_jar: Path = Path(".runtime/weka-3.8.6.jar")
+    java_executable: str = "java"
+    verification_timeout_seconds: int = Field(default=30, ge=1, le=120)
 
 
 @lru_cache

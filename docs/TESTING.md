@@ -1,5 +1,37 @@
 # Verification results
 
+## Converted-output verification — 11 October 2026
+
+Reverified on Windows with Python 3.13, Java 22, PostgreSQL 18, and Chrome.
+
+| Check | Result |
+| --- | --- |
+| Complete backend unit and PostgreSQL integration suite | **64 passed** |
+| Chrome browser workflows | **6 passed**, including verified ARFF/CSV output and rejected output with no preview/download |
+| Frontend production build | Passed |
+| Python lint (`ruff check backend scripts`) | Passed |
+| Real WEKA compatibility helper | Passed: adversarial ARFF 4 × 3, weather ARFF 3 × 5 |
+| 100,000-row benchmark | Verification passed; parse/convert 1.267 s, verification 6.767 s, combined 8.034 s |
+| Converter screenshot | Verification message, checked counts, and download button visually inspected |
+
+The automatic gate runs after writing the full output in memory and before publishing a file or
+successful history record. WEKA independently loads ARFF and compares relation, ordered schema,
+nominal values, dates, cells, missing values, and counts with a source-data manifest. An additional
+comparison preserves exact numeric spelling. CSV is reparsed and every header/cell is compared with
+the expected representation. Empty ARFF strings generate a CSV representation warning.
+
+Tests cover all seven date patterns, Unicode, escaping, embedded CRLF, literal question marks,
+empty strings, missing values, high precision, header-only output, rows beyond the preview,
+changed/dropped/reordered data, numeric overflow, missing JAR/Java, timeouts, and bad WEKA reports.
+API tests confirm failure/unavailability logs errors and creates no output or history; browser tests
+confirm a genuine WEKA rejection displays an error and withholds preview/download.
+
+Install the required WEKA JAR as described in README before reproducing tests. The benchmark includes
+verification, but excludes HTTP/database/UI overhead. One existing TestClient deprecation warning
+remains; all tests pass with the pinned dependencies.
+
+## Earlier baseline
+
 Verified on **5 October 2026**, Windows, Python 3.12, Node 22.12, PostgreSQL 18, and Google Chrome.
 
 | Check | Result / evidence |
@@ -80,7 +112,7 @@ npm.cmd audit
 .\node_modules\.bin\prettier.cmd --check src tests
 ```
 
-For actual WEKA verification, install Java 11+ and obtain the official
+For actual WEKA verification (now required for CSV → ARFF conversion), install Java 11+ and obtain the official
 [weka-stable 3.8.6 JAR](https://repo.maven.apache.org/maven2/nz/ac/waikato/cms/weka/weka-stable/3.8.6/weka-stable-3.8.6.jar),
 placing it at `.runtime/weka-3.8.6.jar`. Run:
 

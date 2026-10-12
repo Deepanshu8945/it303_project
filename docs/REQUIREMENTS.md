@@ -34,6 +34,7 @@ All backend paths below are prefixed by `/api/v1`.
 | FR-016 Named authenticated download — p9 | 0.6.2 | Download buttons | GET `/conversions/{id}/download` | owner-checked conversion and file expiry |
 | FR-017 Metadata/history/reverse order/deletion — p9 | 0.6.3–0.6.5 | `/history`, `/dashboard` | GET `/history`, GET `/dashboard`, DELETE `/history/{id}` | conversions + output deletion |
 | FR-018 Accounts, aggregate activity, limits, role restriction — p9 | 0.7.1–0.7.3 | `/admin` | GET `/admin`, PATCH/DELETE `/admin/users/{id}`, PUT `/admin/config` | users, sessions, conversions, events, system_config |
+| FR-019 Converted-output verification — professor's addition, 11 October 2026 | 0.5 Validate & Report Errors, after 0.4 and before 0.6 | Verification passed and checked counts above output preview | `verification.verify_output`; WEKA for ARFF, Python CSV reader for CSV; schema/data comparison | Failed/unavailable verification blocks output/history publication and logs a validation event |
 
 ## Data stores and flows
 

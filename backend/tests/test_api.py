@@ -60,6 +60,8 @@ def test_complete_conversion_history_workflow(client, account):
     headers = account["headers"]
     result = converted(client, headers)
     assert result["instance_count"] == 2
+    assert result["verification"]["status"] == "passed"
+    assert "WEKA" in result["verification"]["tool"]
     output = client.get(API + f"/conversions/{result['id']}/download", headers=headers)
     assert output.status_code == 200 and "@relation" in output.text
     assert client.get(API + "/dashboard", headers=headers).json()["total"] == 1
@@ -71,6 +73,61 @@ def test_complete_conversion_history_workflow(client, account):
         client.get(API + f"/conversions/{result['id']}/download", headers=headers).status_code
         == 404
     )
+
+
+def test_verification_failure_does_not_publish(client, account, monkeypatch):
+    from backend.app.conversion.types import ConversionError
+    from backend.app.conversion.verification import VerificationUnavailable
+    from backend.app.routes import conversions
+
+    headers = account["headers"]
+    data = upload(client, headers).json()
+    body = {
+        "upload_id": data["upload_id"],
+        "relation": data["relation"],
+        "attributes": data["attributes"],
+    }
+    storage = file_path(data["upload_id"], "input").parent
+    before = set(storage.iterdir())
+    for error, code in [
+        (ConversionError("Output verification failed."), 400),
+        (VerificationUnavailable("Output verification unavailable."), 503),
+    ]:
+
+        def fail(*args, **kwargs):
+            raise error
+
+        monkeypatch.setattr(conversions, "verify_output", fail)
+        result = client.post(API + "/conversions", headers=headers, json=body)
+        assert result.status_code == code
+        assert "verification" in result.json()["detail"]["errors"][0]["message"]
+        assert client.get(API + "/history", headers=headers).json() == []
+        assert set(storage.iterdir()) == before
+    with SessionLocal() as db:
+        assert len(list(db.scalars(select(Event).where(Event.kind == "validation")))) == 2
+
+
+def test_verified_csv_download(client, account):
+    headers = account["headers"]
+    data = upload(
+        client, headers, b"@relation r\n@attribute text string\n@data\n'a,b'\n?\n''\n", "text.arff"
+    ).json()
+    result = client.post(
+        API + "/conversions",
+        headers=headers,
+        json={
+            "upload_id": data["upload_id"],
+            "relation": data["relation"],
+            "attributes": data["attributes"],
+        },
+    )
+    assert result.status_code == 201, result.text
+    result = result.json()
+    assert result["verification"]["tool"] == "Python CSV reader"
+    assert result["verification"]["warnings"]
+    output = client.get(API + f"/conversions/{result['id']}/download", headers=headers)
+    assert output.status_code == 200
+    assert output.content == b'text\r\n"a,b"\r\n""\r\n""\r\n'
 
 
 def test_ownership_and_admin_cannot_read_dataset(client, account):

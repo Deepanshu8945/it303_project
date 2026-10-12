@@ -30,12 +30,12 @@ def send_link(user_id, email, purpose, token):
             eml_file = outbox / f"{uid()}.eml"
             eml_file.write_bytes(message.as_bytes())
             status = "saved locally (development delivery)"
-            print(f"\n========================================================")
+            print("\n========================================================")
             print(f"[LOCAL EMAIL] To: {email}")
             print(f"Action: {purpose.title()} account")
             print(f"Link: {link}")
             print(f"Saved locally to: {eml_file}")
-            print(f"========================================================\n", flush=True)
+            print("========================================================\n", flush=True)
         else:
             smtp_cls = smtplib.SMTP_SSL if config.smtp_port == 465 else smtplib.SMTP
             with smtp_cls(config.smtp_host, config.smtp_port, timeout=10) as smtp:

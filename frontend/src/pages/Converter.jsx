@@ -376,7 +376,7 @@ export default function Converter() {
               onClick={convert}
             >
               {busy
-                ? "Converting…"
+                ? "Converting & verifying…"
                 : `Convert to ${upload.target_format.toUpperCase()}`}
               <ArrowRight size={17} />
             </button>
@@ -391,13 +391,28 @@ export default function Converter() {
             </h2>
             <span className="badge">
               <Check size={13} />
-              Completed
+              Verified
             </span>
           </div>
           <p className="muted">
             {result.download_name} · {result.instance_count} instances ·{" "}
             {result.attribute_count} attributes
           </p>
+          {result.verification?.status === "passed" && (
+            <div role="status">
+              <p>Verification passed · {result.verification.tool}</p>
+              <p className="muted">
+                All {result.verification.instance_count} rows and{" "}
+                {result.verification.attribute_count} columns checked against
+                your reviewed dataset.
+              </p>
+              {result.verification.warnings.map((warning) => (
+                <p className="muted" key={warning}>
+                  {warning}
+                </p>
+              ))}
+            </div>
+          )}
           <pre>{result.preview}</pre>
           <div className="panel-actions">
             <span className="muted">

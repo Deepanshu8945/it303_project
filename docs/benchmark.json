@@ -2,5 +2,8 @@
   "instances": 100000,
   "input_bytes": 12327812,
   "output_bytes": 12628017,
-  "parse_and_convert_seconds": 1.011
+  "parse_and_convert_seconds": 1.267,
+  "verification_seconds": 6.767,
+  "parse_convert_verify_seconds": 8.034,
+  "verification_status": "passed"
 }

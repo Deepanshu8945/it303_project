@@ -35,6 +35,7 @@ and download it. PostgreSQL stores account and history metadata; private files e
 - Numeric, nominal, date, and string inference; editable attribute names and types.
 - Bidirectional conversion with numeric lexemes preserved, missing-value handling, and line-level errors.
 - Input grid and generated-output previews; authenticated downloads.
+- Automatic verification of complete output before download: WEKA checks ARFF, Python's CSV reader checks CSV, and dataset comparison checks preservation.
 - Personal conversion history with file-name search, format filters, and confirmed deletion.
 - Dashboard with real conversion totals, processed instance counts, recent activity, and retained downloads.
 - Administrator account activation/suspension/deletion, aggregate counts, validation/email/access logs,
@@ -144,59 +145,192 @@ it303_project/
 Python package directories also contain `__init__.py`. Generated `.venv`, `.runtime`, `node_modules`,
 `dist`, test output, and intermediate PDF images are ignored.
 
-## Installation — Windows PowerShell
+## Setup from scratch — Windows Command Prompt
 
-Install Python 3.11 or 3.12, Node 22+, and PostgreSQL 17 or 18. Include PostgreSQL `bin` in PATH;
-the local database helper also detects a standard Windows PostgreSQL installation.
-Run the commands below from this project directory. No Docker is required.
+Follow these steps in order for a new local demonstration installation. Commands in this section use
+**Command Prompt (`cmd.exe`)**, not PowerShell. All project files, dependencies, and database data stay
+in your extracted `codebase` directory. No Docker is required.
 
-```powershell
-py -3.12 -m venv .venv
+### 1. Install the prerequisites
+
+Install Python **3.12 or 3.13**, Node.js **22+** (including npm), PostgreSQL **17 or 18**, and a
+Java **JDK 11+** supporting source-file launch. Python 3.13, PostgreSQL 18, and Java 22 were tested
+on this machine. Enable Python's PATH/launcher options and Java/Node PATH options in their installers.
+The PostgreSQL helper detects a standard `C:\Program Files\PostgreSQL\<version>\bin` installation;
+for a custom installation, add its `bin` directory to PATH. Installing WEKA's desktop GUI is unnecessary.
+
+Open a **new Command Prompt after installation**, and check:
+
+```bat
+py -3.13 --version
+node --version
+npm.cmd --version
+java -version
+javac -version
+```
+
+If you installed Python 3.12, use `py -3.12` instead of `py -3.13` in this guide.
+
+### 2. Extract the project and enter the right folder
+
+Extract/copy the project to a permanent folder. Open the `codebase` directory containing `backend`,
+`frontend`, `scripts`, and this README. For this checkout:
+
+```bat
+cd /d "C:\Users\DIPANSHU KUMAR\Desktop\projects\it303_project\codebase"
+dir backend\requirements.txt
+dir frontend\package.json
+```
+
+Replace the path with your own extracted `codebase` location. Run the backend/setup commands from
+this directory, not its parent. Do not reuse a copied `.venv` or `node_modules` from another machine;
+create/install them locally in the next step.
+
+### 3. Install Python and frontend dependencies
+
+```bat
+py -3.13 -m venv .venv
+.\.venv\Scripts\python.exe --version
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
 .\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+.\.venv\Scripts\python.exe -m pip check
 cd frontend
 npm.cmd ci
 cd ..
 ```
 
-### Database setup and configuration
+Wait for each command to finish successfully before continuing. Calling the environment's Python
+directly means you do not need to activate it. `pip check` should report no broken requirements.
 
-For a fresh demonstration setup, the helper creates a **separate project-local PostgreSQL cluster**,
-binds it only to `127.0.0.1:55432`, creates application/test databases, generates `.env` secrets,
-and creates random demonstration passwords. It does not change your existing PostgreSQL service.
+### 4. Install the required WEKA verifier
 
-```powershell
-.\.venv\Scripts\python.exe scripts\local_postgres.py start
-.\.venv\Scripts\python.exe -m backend.manage init-db
-.\.venv\Scripts\python.exe -m backend.manage seed
-Get-Content .runtime\demo-credentials.txt
+Create the runtime folder and download the official WEKA 3.8.6 JAR **before running `seed`**:
+
+```bat
+if not exist .runtime mkdir .runtime
+curl.exe --fail --location "https://repo.maven.apache.org/maven2/nz/ac/waikato/cms/weka/weka-stable/3.8.6/weka-stable-3.8.6.jar" --output ".runtime\weka-3.8.6.jar"
+dir .runtime\weka-3.8.6.jar
 ```
 
-The helper intentionally refuses to overwrite an existing `.env` when initializing a new cluster.
-If you already have a configured database, use the existing-database instructions below instead.
+The file should be **9,779,141 bytes**, not empty or an HTML download page. If curl fails, download
+the [official WEKA JAR](https://repo.maven.apache.org/maven2/nz/ac/waikato/cms/weka/weka-stable/3.8.6/weka-stable-3.8.6.jar)
+in your browser and save it at exactly `.runtime\weka-3.8.6.jar`; check that Windows did not add another extension.
+WEKA and Java are required for CSV → ARFF verification and sample seeding. CSV output uses Python's CSV reader.
 
-### Running the project
+### 5. Create and start the local database
 
-Terminal 1, project root:
+For a **fresh local setup**, do not copy `.env.example` or an old `.env` to `.env` first. The helper
+generates `.env` with matching database credentials and random secrets itself:
 
-```powershell
+```bat
+.\.venv\Scripts\python.exe scripts\local_postgres.py start
+```
+
+Wait for `Project PostgreSQL ready on 127.0.0.1:55432`. This creates a separate PostgreSQL cluster in
+`.runtime\postgres`, the application and test databases, `.env`, and `.runtime\demo-credentials.txt`.
+It does not change your existing PostgreSQL service. The database must be running before `init-db`,
+`seed`, or the backend can connect.
+
+If it says **"An .env already exists"**, use the troubleshooting section below. An `.env` backup
+contains settings, not database contents. For an existing external database, follow the alternate
+database instructions below instead of this automatic setup.
+
+### 6. Create the tables and demo accounts
+
+```bat
+.\.venv\Scripts\python.exe -m backend.manage init-db
+.\.venv\Scripts\python.exe -m backend.manage seed
+type .runtime\demo-credentials.txt
+```
+
+Expected messages: `Database schema initialized.` and
+`Demo accounts and sample conversion history are ready.` Both commands are safe to rerun;
+seeding reuses existing accounts and does not reset their passwords.
+
+Use `student@example.com` for the user account or `admin@example.com` for the administrator,
+with the corresponding generated password in `.runtime\demo-credentials.txt`.
+
+### 7. Start the backend — terminal 1
+
+From `codebase`:
+
+```bat
 .\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Terminal 2:
+Keep this terminal open. Wait for `Application startup complete`, then open the
+[health check](http://127.0.0.1:8000/api/v1/health). It should report `"status":"ok"` and
+`"database":"connected"`. [API documentation](http://127.0.0.1:8000/docs) is also available.
 
-```powershell
-cd frontend
-npm.cmd run dev -- --port 5173
+### 8. Start the frontend — terminal 2
+
+Open a second Command Prompt:
+
+```bat
+cd /d "C:\Users\DIPANSHU KUMAR\Desktop\projects\it303_project\codebase\frontend"
+npm.cmd run dev -- --port 5173 --strictPort
 ```
 
-Open **http://localhost:5173**. API documentation is at http://127.0.0.1:8000/docs and the health check is
-http://127.0.0.1:8000/api/v1/health. On later runs, start the local database before the servers with the
-same `local_postgres.py start` command. Stop the servers with Ctrl+C. Stop only this project's database:
+Replace the path if you extracted elsewhere. Keep this terminal open and visit
+[http://localhost:5173](http://localhost:5173). `--strictPort` prevents silently starting on a different port
+if 5173 is already occupied.
 
-```powershell
+### 9. Check a complete conversion
+
+Sign in with the generated student credentials, open **File converter**, upload `samples\students.csv`,
+review the schema, and click **Convert to ARFF**. Confirm **Verification passed** appears, then download
+the ARFF file. Upload `samples\weather.arff` and convert to CSV to check the other direction.
+Verification runs on the entire output before successful history and download publication.
+
+### Starting again after closing the app or restarting Windows
+
+Dependencies and WEKA remain installed. Do not recreate `.env` or the database. In terminal 1, enter
+`codebase` and run:
+
+```bat
+.\.venv\Scripts\python.exe scripts\local_postgres.py start
+.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+In terminal 2, enter `codebase\frontend` and run:
+
+```bat
+npm.cmd run dev -- --port 5173 --strictPort
+```
+
+### Stopping the app and releasing its ports
+
+Press **Ctrl+C** in both the backend and frontend terminals. Then, from `codebase`, stop the
+project-local database:
+
+```bat
 .\.venv\Scripts\python.exe scripts\local_postgres.py stop
 ```
+
+This releases frontend **5173**, backend **8000**, and database **55432**, while preserving files,
+accounts, and configuration for the next run. Closing the browser alone does not stop the servers.
+To inspect whether any listeners remain:
+
+```bat
+netstat -ano -p tcp | findstr LISTENING | findstr /C:":5173 " /C:":8000 " /C:":55432 "
+```
+
+No output means these ports have no TCP listeners. For a background server with no terminal, use
+Task Manager to identify the project process using the reported PID and end it. Do not terminate an
+unrelated service merely because it uses a port.
+
+### Troubleshooting setup
+
+| Symptom | Cause / action |
+| --- | --- |
+| `ConnectionTimeout` during `init-db` or backend startup | Start PostgreSQL with `scripts\local_postgres.py start` first. If it still fails, check `.runtime\postgres.log` and that `.env` points to the intended database. `init-db` creates tables; it does not start PostgreSQL. |
+| `An .env already exists` | The database folder is absent but `.env` exists. For a new demo only, preserve it with `ren .env .env.before-local-setup`, then rerun step 5. Choose a different backup name if that name already exists. Keep the newly generated `.env` active. Recovering old data requires the original database or a database backup, not just `.env`. |
+| `VerificationUnavailable: install the WEKA JAR` | Repeat step 4, confirm the file size and run from `codebase`. If `.env` specifies `WEKA_JAR`, use `.runtime/weka-3.8.6.jar` or the correct absolute JAR path. |
+| Java missing or verification timeout | Check `java -version` and `javac -version`. Install a JDK 11+ and reopen the terminal. `JAVA_EXECUTABLE` in `.env` can specify the actual Java executable path. |
+| `.venv\Scripts\python.exe` is empty or not a valid Windows application | Repair the local environment with `py -3.13 -m venv --upgrade .venv` (or `py -3.12` for your installed version), then rerun dependency installation in step 3 and check the environment's `python.exe --version`. |
+| `py`, `node`, `npm`, or `java` not recognized | Install the prerequisite/add it to PATH, then open a new terminal. |
+| Port 8000, 5173, or 55432 already in use | Inspect listeners as above and stop the old project instance before starting another. |
+| Sign-in fails after restoring an old `.env` | Use the credentials belonging to the active database. A new local database gets newly generated passwords. Restoring old connection settings does not restore accounts. |
 
 ### Existing PostgreSQL database / Linux / macOS
 
@@ -238,6 +372,9 @@ Do not use these demonstration accounts for a public deployment.
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_STARTTLS` | Email-provider configuration |
 | `MAIL_FROM` | Sender address |
 | `DEMO_USER_PASSWORD`, `DEMO_ADMIN_PASSWORD` | Used only by the explicit seed command |
+| `WEKA_JAR` | WEKA JAR path; default `.runtime/weka-3.8.6.jar` |
+| `JAVA_EXECUTABLE` | Java executable name/path; default `java` |
+| `VERIFICATION_TIMEOUT_SECONDS` | WEKA check timeout; default 30 seconds |
 
 After initialization, administrators change upload, inference, and retention limits in the UI; changing
 their initial environment defaults does not overwrite database settings.
@@ -260,6 +397,7 @@ a guarantee that a provider delivered to the recipient's inbox. Local emails are
 - Supported date patterns are listed in the schema date selector and `conversion/validation.py`.
   Other patterns are rejected explicitly, never silently reinterpreted.
 - Fatal validation prevents output and successful-history creation. Failure details go to validation logs.
+- Generated output is verified before storage and successful history publication. ARFF uses WEKA plus exact schema/value comparison; CSV checks every header and cell with Python's CSV reader. The UI displays the verification tool, counts, and any representation warnings.
 - Preview shows the full ARFF header and at most 20 data rows; the download contains the full dataset.
 - Downloads require ownership, a live session, and unexpired retention. History metadata outlives files.
 
@@ -277,6 +415,21 @@ data, quoting, and missing-value encoding. [REQUIREMENTS.md](docs/REQUIREMENTS.m
 differences and the SRS-first decisions.
 
 ## Testing
+
+### Required output verifier setup
+
+Install Java 11+ (a JDK supporting source-file launch) and download the official
+[WEKA 3.8.6 JAR](https://repo.maven.apache.org/maven2/nz/ac/waikato/cms/weka/weka-stable/3.8.6/weka-stable-3.8.6.jar)
+to `.runtime/weka-3.8.6.jar`. No WEKA GUI or trained model is required.
+`WEKA_JAR` and `JAVA_EXECUTABLE` can override the paths; `VERIFICATION_TIMEOUT_SECONDS`
+defaults to 30. CSV verification requires no additional dependency. A missing verifier or timeout
+returns an explicit error and withholds ARFF output; it never reports a skipped check as passed.
+WEKA compares numeric values at its native floating-point precision; the additional comparison
+checks exact numeric text. Values outside WEKA's finite numeric range are rejected.
+CSV cannot carry ARFF type declarations and represents empty strings and missing values as empty fields;
+verification checks the expected CSV representation and reports this ambiguity when empty strings occur.
+
+Workflow: upload → review schema → convert → verify complete output → preview/download.
 
 Start the project-local database, then run from the project root:
 
