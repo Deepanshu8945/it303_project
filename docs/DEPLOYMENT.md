@@ -1,5 +1,8 @@
 # Deployment and operations
 
+For the free Render/Supabase path, use [FREE_DEPLOYMENT.md](FREE_DEPLOYMENT.md).
+The instructions below describe a separately managed server using Caddy and SMTP.
+
 ## HTTPS deployment
 
 Local development binds only to loopback over HTTP. For a public deployment, use an actual hostname,

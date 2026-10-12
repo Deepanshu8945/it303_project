@@ -214,7 +214,7 @@ test("registration, emailed verification, password recovery, and account deletio
         .replace(/=3D/g, "=");
       if (!text.includes(`To: ${email}`)) continue;
       const match = text.match(
-        new RegExp(`http://localhost:5173/${purpose}\\?token=([A-Za-z0-9_-]+)`),
+        new RegExp(`https?://[^\\s<>]+/${purpose}\\?token=([A-Za-z0-9_-]+)`),
       );
       if (match) return `/${purpose}?token=${match[1]}`;
     }

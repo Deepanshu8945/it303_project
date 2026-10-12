@@ -1,5 +1,23 @@
 # Verification results
 
+## Free deployment preparation — 12 October 2026
+
+- Backend regression suite: **74 passed**. Deployment-specific rerun: **10 passed**, including
+  private cloud upload/verification/download/delete/expiry, paginated orphan cleanup, provider errors,
+  Brevo HTTPS mail, administrator bootstrap/idempotence, PostgreSQL RLS, startup port handling,
+  SPA routing, traversal/hidden-file rejection, and configuration validation.
+- Frontend production build and Python lint passed. **Six Chrome workflows passed** on isolated
+  ports 18000/15173 with local-only email. The initial email workflow failed against an existing
+  SMTP-configured server; the isolated rerun passed without changing that server's settings.
+- Same-origin smoke check: FastAPI served the built homepage and `/register`, with healthy database/API.
+- Cloud provider HTTP responses were mocked. Actual Supabase permissions, Brevo delivery, and the
+  public Render deployment must be checked after the owner configures those accounts.
+- **Docker image build was not validated locally**: Docker Desktop's engine did not respond to
+  bounded readiness checks. Render can build the supplied Dockerfile; its first build/startup is
+  an outstanding deployment validation step, not a completed check.
+
+See [FREE_DEPLOYMENT.md](FREE_DEPLOYMENT.md) for account setup, secrets, and public smoke tests.
+
 ## Converted-output verification — 11 October 2026
 
 Reverified on Windows with Python 3.13, Java 22, PostgreSQL 18, and Chrome.

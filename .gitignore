@@ -4,10 +4,9 @@ dist/
 __pycache__/
 .pytest_cache/
 .ruff_cache/
-.env
-.env.*
-.env copy
+.env*
 !.env.example
+*.eml
 .runtime/
 tmp/
 *.pyc

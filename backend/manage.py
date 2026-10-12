@@ -14,6 +14,12 @@ from .app.storage import atomic_write, cleanup, file_path
 
 def init():
     Base.metadata.create_all(engine)
+    if settings().environment == "production":
+        # Supabase's browser-facing Data API must not expose account/token tables.
+        # The backend's database owner connection still works with RLS enabled.
+        with engine.begin() as connection:
+            for table in Base.metadata.sorted_tables:
+                connection.exec_driver_sql(f'ALTER TABLE "{table.name}" ENABLE ROW LEVEL SECURITY')
     with SessionLocal() as db:
         if not db.get(SystemConfig, 1):
             config = settings()
@@ -111,14 +117,41 @@ def seed():
     print("Demo accounts and sample conversion history are ready.")
 
 
+def bootstrap_admin():
+    """Create a private hosted administrator once; never overwrite existing passwords."""
+    from .app.validation_helpers import validate_admin_credentials
+
+    config = settings()
+    email, password = validate_admin_credentials(config)
+    with SessionLocal() as db:
+        existing = db.scalar(select(User).where(User.email == email))
+        if existing:
+            if existing.role != "admin":
+                raise RuntimeError("Bootstrap email belongs to a non-administrator account.")
+            return
+        db.add(
+            User(
+                name="Project Administrator",
+                email=email,
+                password_hash=hash_password(password),
+                role="admin",
+                verified=True,
+            )
+        )
+        db.commit()
+    print("Hosted administrator created.")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["init-db", "seed", "cleanup"])
+    parser.add_argument("command", choices=["init-db", "seed", "cleanup", "bootstrap-admin"])
     command = parser.parse_args().command
     if command == "init-db":
         init()
     elif command == "seed":
         seed()
+    elif command == "bootstrap-admin":
+        bootstrap_admin()
     else:
         with SessionLocal() as db:
             cleanup(db)

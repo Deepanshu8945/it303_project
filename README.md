@@ -451,6 +451,11 @@ See [test evidence and limits](docs/TESTING.md). Screenshots are in `docs/screen
 
 ## Deployment and operations
 
+For a free hosted demonstration, follow [the complete Render + Supabase deployment guide](docs/FREE_DEPLOYMENT.md).
+The repository includes `Dockerfile`, `.dockerignore`, `render.yaml`, cloud private storage, and Brevo
+HTTPS email support. The Docker image serves React and the API on one origin and installs Java/WEKA.
+Local setup remains the default; cloud settings are supplied through Render environment variables.
+
 The local demo uses loopback HTTP. Public deployment must use HTTPS; a Caddy reverse-proxy configuration
 is included. [DEPLOYMENT.md](docs/DEPLOYMENT.md) covers HTTPS, SMTP, process supervision, daily backups,
 health checks, retention, and restore. Build frontend assets with `npm ci` followed by `npm run build`.

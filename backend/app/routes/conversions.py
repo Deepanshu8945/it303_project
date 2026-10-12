@@ -3,10 +3,11 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 
+from ..cloud_storage import CloudFile
 from ..config import settings
 from ..conversion.engine import (
     ParsingOptions,
@@ -205,6 +206,19 @@ def download(key: str, user=Depends(current_user), db=Depends(get_db)):
     path = file_path(item.id, item.target_format)
     if item.expires_at <= now() or not path.exists():
         raise HTTPException(410, "This download has expired. Convert the original file again.")
+    if isinstance(path, CloudFile):
+        from urllib.parse import quote
+
+        filename = Path(item.filename).stem + "." + item.target_format
+        return Response(
+            content=path.read_bytes(),
+            media_type="text/csv" if item.target_format == "csv" else "text/plain",
+            headers={
+                "Content-Disposition": "attachment; filename*=UTF-8''" + quote(filename, safe=""),
+                "Cache-Control": "no-store",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
     return FileResponse(
         path,
         filename=Path(item.filename).stem + "." + item.target_format,

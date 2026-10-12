@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from .config import settings
 from .database import SessionLocal
+from .frontend import serve_frontend
 from .middleware import BodyLimitMiddleware
 from .routes import admin, auth, conversions, profile
 from .storage import cleanup
@@ -28,7 +29,7 @@ async def maintenance():
             await asyncio.to_thread(run_cleanup)
         except Exception:
             logging.exception("Retention cleanup failed")
-        await asyncio.sleep(30)
+        await asyncio.sleep(settings().cleanup_interval_seconds)
 
 
 @asynccontextmanager
@@ -113,3 +114,9 @@ def health():
 
 for router in (auth.router, profile.router, conversions.router, admin.router):
     app.include_router(router, prefix="/api/v1")
+
+if settings().frontend_dist:
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def frontend(path: str):
+        return serve_frontend(settings().frontend_dist, path)

@@ -3,6 +3,8 @@ import logging
 import smtplib
 from email.message import EmailMessage
 
+import httpx
+
 from .config import settings
 from .database import SessionLocal
 from .models import Event, uid
@@ -36,6 +38,21 @@ def send_link(user_id, email, purpose, token):
             print(f"Link: {link}")
             print(f"Saved locally to: {eml_file}")
             print("========================================================\n", flush=True)
+        elif config.mail_mode == "brevo":
+            response = httpx.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={"api-key": config.brevo_api_key, "accept": "application/json"},
+                json={
+                    "sender": {"name": "File Converter", "email": config.mail_from},
+                    "to": [{"email": email}],
+                    "subject": str(message["Subject"]),
+                    "textContent": f"Open this link to {purpose} your account: {link}\nThis link expires in one hour.",
+                    "htmlContent": message.get_payload()[1].get_content(),
+                },
+                timeout=10,
+            )
+            response.raise_for_status()
+            status = "accepted by Brevo API"
         else:
             smtp_cls = smtplib.SMTP_SSL if config.smtp_port == 465 else smtplib.SMTP
             with smtp_cls(config.smtp_host, config.smtp_port, timeout=10) as smtp:
