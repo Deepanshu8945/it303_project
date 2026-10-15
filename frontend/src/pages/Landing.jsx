@@ -29,9 +29,7 @@ export default function Landing() {
             <em>System.</em>
           </h1>
           <p className="hero-subtitle">
-            From CSV to ARFF.
-            <br />
-            And back, with confidence.
+            CSV ↔ ARFF
           </p>
           <p className="muted">
             Prepare datasets for the WEKA workbench. Review your attributes,
